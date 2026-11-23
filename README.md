@@ -1,118 +1,64 @@
 # unfold
 
-A journal you keep inside a hand-drawn pop-up book. Open the cover and the rooms of a little house
-fold out one at a time: bedroom, bathroom, kitchen, balcony. Each room has one place to write.
+> **Branch `wedding-invite`:** the book as a wedding invitation. Each page is one event (haldi,
+> the party, the wedding, reception) with an invite card pinned in the scene; tap it
+> for the date, venue, dress code, a map link and an add-to-calendar file, and RSVP from the top
+> right. Names, dates and places live in `lib/wedding.ts` (mock data for now), the rooms in
+> `lib/invite.ts`. Personal links: `?to=the%20sharma%20family` writes the guest's name on the cover.
+> RSVPs are only kept in the browser for now.
 
-<p align="center">
-  <a href="docs/demo.mp4"><img src="docs/demo.gif" alt="Paging through the pop-up book: bedroom, bathroom, kitchen and balcony folding open in turn" width="520"></a>
-</p>
+A journal house: a hand-drawn pop-up book whose rooms fold open one at a time.
 
-<sub>Click the preview for the full-quality video.</sub>
+- **Full-circle book** — pages radiate from the spine all the way round, like a carousel pop-up
+  book. The room in front opens to a right angle with its creased floor flat and its pop-up
+  furniture standing; turning keeps going round, from the last room back to the first.
+- **Hybrid style** — everything is blue-ink line art on paper; the room in front washes with colour.
+- **Four rooms** — bedroom, bathroom, kitchen, balcony. See [ROOMS.md](./ROOMS.md).
 
-## Run it
+## Journal
+
+Each room has one place you write: the cork board (bedroom), the mirror (bathroom), the fridge
+door (kitchen) and the diary on the bean bag (balcony). Click it when the room is in front and the
+camera moves in on it, then opens a close-up (`components/Closeup.tsx`):
+
+- the cork board, mirror and fridge show your notes stuck on them (pins, tape, magnets); click +
+  or a note to lift it off and write; Cmd/Ctrl+Enter or "pin it" sticks it back on
+- the diary opens as a two-page spread: past pages listed on the left, today's page on the right
+- "tear out" crumples a note away; Esc puts a note back, then closes the close-up
+
+Entries are saved in this browser only (localStorage, `unfold.entries.v1`), through the async
+functions in `lib/journal.ts`, so moving them to a server later only means changing that file.
+Spots are marked inside the drawings with `s.mark("journal", ...)` / `iso.mark(...)`; their
+names and prompts live in `lib/spots.ts`.
+
+## Run
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:3000.
-
-- **Open / close** the book: click the cover, press Enter or double-click. Esc, or the left arrow on the first room, closes it.
-- **Turn rooms:** the side arrows, the arrow keys, or drag sideways.
-- **Write:** click the writing spot in the room in front.
-
-## The rooms
-
-| Room | Mood | Where you write |
-|------|------|-----------------|
-| Bedroom | slow mornings, late-night thinking | the cork board: pin notes |
-| Bathroom | resets, mirror talks | the mirror: stick notes on it |
-| Kitchen | nourishment, home, people over | the fridge door: notes under magnets |
-| Balcony | late nights, the big picture | the diary on the bean bag: a page a day |
-
-Click a spot and the camera moves in on it, then a close-up opens. "Tear out" crumples a note
-away; Esc puts a note back, then closes the close-up.
-
-Entries are saved in this browser only (localStorage, `unfold.entries.v1`). Everything goes
-through the async functions in `lib/journal.ts`, so moving to a server later only means changing
-that file.
-
-## How the folds work
-
-The book is a real pop-up mechanism, worked out in code. There are three folds.
-
-**1. The pages fan out from one spine.**
-Every page is hinged on the same vertical spine, like a carousel book. Two neighbouring pages make
-one room: they're its left and right walls. Opening the book means spreading the pages round the
-spine.
-
-```
-        top view                     the room in front gets 90°,
-                                     the others share what's left
-        page  page
-          \   |   /                       \  |  /
-           \  |  /                         \ | /    ← folded stacks
-            \ | /                     ------ + ------
-   page ---- spine ---- page                 |
-                                             |  ← open room (90°)
-```
-
-The room you're looking at always opens to a right angle. The rest of the half circle is shared out
-between the other rooms, with the nearest getting the most room, so far-off rooms fold flat into
-stacks on either side. Turning to the next room just moves which room gets the 90°, and every page
-slides smoothly to its new angle (`pageAngles` in `lib/fold.ts`).
-
-**2. The floor is a square folded on its diagonal.**
-Take a square of paper and crease it corner to corner. Glue one half to the bottom of the left
-wall and the other half to the bottom of the right wall, with the crease starting at the spine.
-
-- When the walls are 90° apart, the square lies flat: that's the floor.
-- As the walls close, the two halves get pushed together and the crease rises like a tent.
-- When the book is shut, the floor stands straight up between the pages, out of the way.
-
-So the floor folds itself away. Nothing has to be animated by hand: the crease's tip is simply the
-point that stays the right distance from both walls (`floorApex` in `lib/fold.ts`). With the
-walls θ apart and pages of width L, it sits `L / cos(θ/2)` out from the spine and
-`√(2L² − (L / cos(θ/2))²)` up. At θ = 90° that height is 0 (flat), and at θ = 0 it's L
-(standing up).
-
-**3. The furniture is flat cut-outs.**
-Beds, desks and plants are flat paper cards standing on the floor, like the tabs in a pop-up book.
-They're drawn in isometric so they look solid from the camera's angle. A card stands up only once
-its room has opened fully, and lies flat again as soon as the room starts to fold.
-
-On top of the folds, every surface starts as ink line art and washes with colour as its room comes
-to the front, so the open room is coloured and the rest stay sketches.
+Open http://localhost:3000. Arrow keys or the side arrows page through rooms, drag sideways to
+flip, Enter / double-click opens and closes the book.
 
 ## How it's built
 
-Next.js (App Router), React Three Fiber, drei and three.js. The handwriting font is Caveat
-(`@fontsource/caveat`). There are no image assets: every drawing is generated in code when the page
-loads.
-
 | File | What it does |
 |------|--------------|
-| `lib/fold.ts` | The fold maths: page angles, the floor's crease, where the camera looks. |
-| `lib/sketch.ts` | A small hand-drawn 2D renderer (wobbly ink lines, watercolour fills, hatching, paper cut-outs) and `bake()`, which turns a drawing into a texture. |
-| `lib/iso.ts` | Draws furniture in isometric for the pop-up cards. |
+| `lib/fold.ts` | Fold geometry: page angles for a focus position, the floor's crease apex, camera focus. |
+| `lib/sketch.ts` | Tiny hand-drawn 2D renderer (wobbly ink lines, watercolour fills, hatching) and `bake()`, which packs ink + wash + cut-out mask into one texture. |
 | `lib/rooms.ts` | The drawings for every wall, floor and pop-up, plus the covers. |
-| `lib/style.ts` | Colour helpers for the soft wash. |
-| `lib/paperMaterial.ts` | Shader: paper grain, the colour reveal, soft light, pen hatching on shaded faces. |
-| `lib/textures.ts` | Bakes every surface once the font has loaded. |
-| `lib/spots.ts` | The writing spot in each room: its name, prompt and close-up style. |
-| `lib/journal.ts` | Saving and loading entries. |
-| `lib/store.ts` | Animation state shared between the controls and the 3D scene. |
-| `components/Book.tsx` | The 3D scene: pages, folding floors, pop-ups, clickable spots, camera. |
-| `components/Experience.tsx` | Canvas, controls (arrows, keys, drag), captions. |
-| `components/Closeup.tsx` | The close-up writing views (cork board, mirror, fridge, diary). |
-| `components/Crumple.tsx` | The crumple-and-fade animation when a note is torn out. |
+| `lib/paperMaterial.ts` | Shader: paper grain, watercolour reveal, soft light, pen hatching on shadowed faces. |
+| `components/Book.tsx` | The R3F scene: pages, folding floors, pop-ups, camera. |
+| `components/Experience.tsx` | Canvas, controls, drag + keyboard input, captions. |
 
-## Branches
+Stack: Next.js (App Router), React Three Fiber, drei, three.js. Handwriting is Caveat via `@fontsource/caveat`.
 
-- `main`: the journal.
-- `wedding-invite`: the same book turned into a wedding invitation, with one room per event and an
-  RSVP.
+### The floor fold
+
+Each floor is a square creased on its diagonal. With walls at angle θ apart, the crease apex sits at
+distance `L / cos(θ/2)` along the bisector and height `sqrt(2L² − (L / cos(θ/2))²)`: flat at 90°,
+standing straight up when the book is shut.
 
 ## License
 

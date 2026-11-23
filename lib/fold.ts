@@ -1,14 +1,15 @@
-// Geometry of the half-fan pop-up book.
+// Geometry of the pop-up book: a full-circle carousel (the covers meet when it's open).
 //
 // Pages radiate from a vertical spine at the origin. Page k sits at angle phi[k]
 // (measured from +x towards +z). Physical room p lives between page p and page p+1.
 // Its floor is a square creased along the diagonal: when the walls are 90° apart the
 // floor lies flat, and as they close the crease rises like a tent.
 
-export const N = 4; // rooms (must match ROOMS in rooms.ts)
+export const N = 4; // rooms (must match ROOMS in invite.ts: one per wedding event)
 export const L = 1; // page width (spine to outer edge)
-export const H = 1; // page height
-const RIGHT_ANGLE = Math.PI / 2;
+export const H = 1; // page height (the walls)
+export const G = 0.4; // height of the peaked top above the walls (pages are house-shaped)
+export const RIGHT_ANGLE = Math.PI / 2;
 
 export const smooth = (x: number) => {
   const t = Math.min(1, Math.max(0, x));
@@ -19,41 +20,49 @@ export const dirOf = (a: number): [number, number, number] => [Math.cos(a), 0, M
 /** Unit vector pointing from page at angle a into the room on its +angle side. */
 export const normalOf = (a: number): [number, number, number] => [-Math.sin(a), 0, Math.cos(a)];
 
+/** Wrap a slot index into 0..N-1 (f keeps counting up/down as you spin round). */
+export const wrap = (x: number) => ((x % N) + N) % N;
+
+/** Distance between slot i and focus f, going the short way round the circle. */
+export const circDist = (i: number, f: number) => {
+  const d = Math.abs(i - wrap(f));
+  return Math.min(d, N - d);
+};
+
 /** How much physical room i is "the focused room" (1 = fully in front). */
-export const focusOf = (i: number, f: number) => smooth(1 - Math.abs(i - f));
+export const focusOf = (i: number, f: number) => smooth(1 - circDist(i, f));
 
 /**
- * Page angles for focus position f (physical, 0..N-1, continuous) and book openness (0..1).
- * The focused room always gets a right angle; the rest of the half circle is shared out
- * between the other rooms, falling off with distance so far rooms fold flat into stacks.
+ * Page angles for focus position f (physical slot, continuous, wraps) and book openness (0..1).
+ * The focused room always gets a right angle; the rest of the full circle is shared evenly
+ * between the other rooms. The last page stops a hair short of 360° so the covers just meet.
  */
+export const SPAN = Math.PI * 2 * 0.996;
+
 export function pageAngles(f: number, open: number): number[] {
-  const span = Math.PI;
   const b: number[] = [];
-  const g: number[] = [];
   let sb = 0;
-  let sg = 0;
   for (let i = 0; i < N; i++) {
-    const d = Math.abs(i - f);
-    const bb = smooth(1 - d);
+    const bb = focusOf(i, f);
     b.push(bb);
     sb += bb;
-    const gg = (1 - bb) * Math.exp(-0.9 * d) + 1e-4;
-    g.push(gg);
-    sg += gg;
   }
-  const rest = span - RIGHT_ANGLE * sb;
+  const rest = SPAN - RIGHT_ANGLE * sb;
+  const others = N - sb;
   const phi = [0];
-  for (let i = 0; i < N; i++) phi.push(phi[i] + (RIGHT_ANGLE * b[i] + (rest * g[i]) / sg) * open);
+  for (let i = 0; i < N; i++) phi.push(phi[i] + (RIGHT_ANGLE * b[i] + (rest * (1 - b[i])) / Math.max(others, 1e-4)) * open);
   return phi;
 }
 
 /** Angle the camera should look along for focus f (centre of the focused room). */
 export function focusAngle(phi: number[], f: number): number {
-  const i0 = Math.max(0, Math.min(N - 2, Math.floor(f)));
-  const fr = Math.max(0, Math.min(1, f - i0));
+  const fm = wrap(f);
+  const i0 = Math.floor(fm) % N;
+  const i1 = (i0 + 1) % N;
+  const fr = fm - Math.floor(fm);
   const ca = (phi[i0] + phi[i0 + 1]) / 2;
-  const cb = (phi[i0 + 1] + phi[i0 + 2]) / 2;
+  let cb = (phi[i1] + phi[i1 + 1]) / 2;
+  if (i1 === 0) cb += phi[N];
   return ca + (cb - ca) * fr;
 }
 
@@ -75,5 +84,5 @@ export function roomOpenness(phi: number[], p: number) {
 }
 
 /** Logical room index (0 = first room after the cover) ↔ physical slot. */
-export const physicalOf = (logical: number) => N - 1 - logical;
-export const logicalOf = (physical: number) => N - 1 - physical;
+export const physicalOf = (logical: number) => N - 1 - wrap(logical);
+export const logicalOf = (physical: number) => N - 1 - wrap(Math.round(physical));

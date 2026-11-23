@@ -6,26 +6,58 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
 import * as THREE from "three";
 import type { Line2 } from "three-stdlib";
-import { H, L, N, dirOf, floorApex, focusAngle, focusOf, logicalOf, normalOf, pageAngles, roomOpenness, smooth } from "@/lib/fold";
+import { G, H, L, N, dirOf, floorApex, focusAngle, focusOf, logicalOf, normalOf, pageAngles, roomOpenness, smooth } from "@/lib/fold";
 import { makePaperMaterial, INK } from "@/lib/paperMaterial";
-import { ROOMS } from "@/lib/rooms";
+import { ROOMS } from "@/lib/invite";
 import { book } from "@/lib/store";
 import type { BookTextures } from "@/lib/textures";
 
 const PAGE_GAP = 0.014; // thickness between pages when the book is shut
 const INK_HEX = `#${INK.getHexString()}`;
 
-/** Hand-wobbled closed outline in a page's local XY plane. */
-function wobbleRect(seed: number): THREE.Vector3[] {
-  const corners = [
-    [0, 0],
-    [L, 0],
-    [L, H],
-    [0, H],
-    [0, 0],
+/** The page's house shape: walls of height H with a peak of height G above. */
+const housePts = (inset = 0, g = G): [number, number][] => {
+  const k = inset * 1.6;
+  return [
+    [inset, inset],
+    [L - inset, inset],
+    [L - inset, H - inset * 0.3],
+    [L / 2, H + g - k],
+    [inset, H - inset * 0.3],
+    [inset, inset],
   ];
+};
+
+/** House-shaped page geometry; uv.y runs 0..1 over the walls and past 1 in the peak. */
+function houseGeometry(back: boolean) {
+  const shape = new THREE.Shape(housePts().slice(0, 5).map(([x, y]) => new THREE.Vector2(x, y)));
+  const geo = new THREE.ShapeGeometry(shape);
+  const pos = geo.attributes.position;
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / L, pos.getY(i) / H);
+  if (back) geo.translate(-L / 2, 0, 0).rotateY(Math.PI).translate(L / 2, 0, 0);
+  return geo;
+}
+
+/** Move the roof's apex to height H + g (pages beside the open room get a lower peak). */
+function setPeak(geo: THREE.BufferGeometry, g: number) {
+  const pos = geo.attributes.position;
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < pos.count; i++)
+    if (pos.getY(i) > H + 1e-3) {
+      pos.setY(i, H + g);
+      uv.setY(i, (H + g) / H);
+    }
+  pos.needsUpdate = true;
+  uv.needsUpdate = true;
+  geo.computeBoundingSphere();
+}
+
+/** Hand-wobbled closed outline in a page's local XY plane. */
+function wobbleRect(seed: number, inset = 0, z = 0, g = G): THREE.Vector3[] {
+  const corners = housePts(inset, g);
   const out: THREE.Vector3[] = [];
-  for (let s = 0; s < 4; s++) {
+  for (let s = 0; s < corners.length - 1; s++) {
     const [x1, y1] = corners[s];
     const [x2, y2] = corners[s + 1];
     const nx = -(y2 - y1);
@@ -33,7 +65,7 @@ function wobbleRect(seed: number): THREE.Vector3[] {
     for (let j = 0; j < 16; j++) {
       const t = j / 16;
       const o = 0.004 * (Math.sin(seed * 3.1 + (s * 16 + j) * 0.7) * 0.6 + Math.sin(seed * 1.7 + (s * 16 + j) * 1.9) * 0.4);
-      out.push(new THREE.Vector3(x1 + (x2 - x1) * t + nx * o, y1 + (y2 - y1) * t + ny * o, 0));
+      out.push(new THREE.Vector3(x1 + (x2 - x1) * t + nx * o, y1 + (y2 - y1) * t + ny * o, z));
     }
   }
   out.push(out[0].clone());
@@ -121,12 +153,11 @@ export default function Book({ tex, onSpot }: { tex: BookTextures; onSpot: (room
   const { camera, size } = useThree();
 
   // ---- static pieces ------------------------------------------------------
-  const pageGeo = useMemo(() => {
-    const front = new THREE.PlaneGeometry(L, H).translate(L / 2, H / 2, 0);
-    // back face: rotated so the spine sits at u = 1 (no mirrored drawings)
-    const back = new THREE.PlaneGeometry(L, H).rotateY(Math.PI).translate(L / 2, H / 2, 0);
-    return { front, back };
-  }, []);
+  // one geometry per page, so each page's peak can be raised or lowered on its own
+  const pageGeo = useMemo(
+    () => Array.from({ length: N + 1 }, () => ({ front: houseGeometry(false), back: houseGeometry(true), g: G })),
+    [],
+  );
 
   // Page k front = right wall of physical room k (or the front cover for k = N).
   // Page k back  = left wall of physical room k-1 (or the back cover for k = 0).
@@ -190,6 +221,8 @@ export default function Book({ tex, onSpot }: { tex: BookTextures; onSpot: (room
   const pick = (p: number) => (spot: string) => onSpot(logicalOf(p), spot);
 
   const outlines = useMemo(() => Array.from({ length: N + 1 }, (_, k) => wobbleRect(k + 1)), []);
+  // an inner border on the two covers, following the house shape
+  const coverBorders = useMemo(() => ({ front: wobbleRect(31, 0.05, 0.002), back: wobbleRect(37, 0.05, -0.002) }), []);
   const floorLinePts = useMemo(() => Array.from({ length: N }, () => Array.from({ length: (EDGE_STEPS + 1) * 3 }, () => new THREE.Vector3())), []);
   const edgeBuf = useMemo(() => new Float32Array((EDGE_STEPS + 1) * 3 * 3), []);
 
@@ -197,6 +230,8 @@ export default function Book({ tex, onSpot }: { tex: BookTextures; onSpot: (room
   const pageRefs = useRef<(THREE.Group | null)[]>([]);
   const floorLineRefs = useRef<(Line2 | null)[]>([]);
   const outlineRefs = useRef<(Line2 | null)[]>([]);
+  const borderRefs = useRef<(Line2 | null)[]>([]);
+  const coverRefs = useRef<{ front: THREE.Mesh | null; back: THREE.Mesh | null }>({ front: null, back: null });
   const popRefs = useRef<{ outer: THREE.Group | null; hinge: THREE.Group | null }[][]>(Array.from({ length: N }, () => []));
   const target = useMemo(() => new THREE.Vector3(), []);
 
@@ -225,6 +260,29 @@ export default function Book({ tex, onSpot }: { tex: BookTextures; onSpot: (room
       m.back.uniforms.uReveal.value = rb;
       m.front.uniforms.uInkAmt.value = k === N ? 1 : 0.55 + 0.45 * rf;
       m.back.uniforms.uInkAmt.value = k === 0 ? 1 : 0.55 + 0.45 * rb;
+      // the open room's two walls keep their full peak; the others drop to a small one so the
+      // pages fanned round the sides don't read as tall slanted spikes
+      const near = Math.max(focusOf(k, f), focusOf(k - 1, f));
+      const peak = G * (1 + (0.25 + 0.75 * near - 1) * e);
+      const pg = pageGeo[k];
+      if (Math.abs(pg.g - peak) > 1e-3) {
+        pg.g = peak;
+        setPeak(pg.front, peak);
+        setPeak(pg.back, peak);
+        const line = outlineRefs.current[k];
+        if (line) line.geometry.setPositions(wobbleRect(k + 1, 0, 0, peak).flatMap((v) => [v.x, v.y, v.z]));
+      }
+      // once the book has opened all the way round, the two covers meet back to back: hide them
+      // ...along with their inner borders, and the last page's outline, which would sit
+      // right on top of the first page's and draw every edge twice
+      if (k === N) {
+        const shut = book.open < 0.97;
+        for (const b of borderRefs.current) if (b) b.visible = shut;
+        const ol = outlineRefs.current[N];
+        if (ol) ol.visible = shut;
+      }
+      if (k === N) coverRefs.current.front && (coverRefs.current.front.visible = book.open < 0.97);
+      if (k === 0) coverRefs.current.back && (coverRefs.current.back.visible = book.open < 0.97);
     }
 
     // floors + pop-ups
@@ -262,7 +320,7 @@ export default function Book({ tex, onSpot }: { tex: BookTextures; onSpot: (room
       const open = roomOpenness(phi, p);
       // Pop-ups are drawn for the fully open room seen head-on, so they only appear once the
       // room has settled at a right angle and fade out as soon as it starts to fold.
-      const rise = smooth((open - 0.965) / 0.035) * smooth((book.open - 0.96) / 0.04);
+      const rise = smooth((open - 0.965) / 0.035) * smooth((book.open - 0.96) / 0.04) * smooth((focusOf(p, f) - 0.9) / 0.1);
       const mid = (a + b) / 2;
       const dA = dirOf(a);
       const dB = dirOf(b);
@@ -286,7 +344,7 @@ export default function Book({ tex, onSpot }: { tex: BookTextures; onSpot: (room
     const yaw = Math.PI / 2 + (gF - Math.PI / 2) * e;
     const pitch = THREE.MathUtils.degToRad(8 + 24 * e);
     const dF = dirOf(gF);
-    target.set(L / 2 + (dF[0] * 0.45 - L / 2) * e, H / 2 + (0.5 - H / 2) * e, dF[2] * 0.45 * e);
+    target.set(L / 2 + (dF[0] * 0.45 - L / 2) * e, (H + G) / 2 + (0.58 - (H + G) / 2) * e, dF[2] * 0.45 * e);
     // moving in on a journal spot
     book.zoom += (book.zoomTarget - book.zoom) * (1 - Math.exp(-dt * 6));
     const zm = smooth(book.zoom);
@@ -296,7 +354,7 @@ export default function Book({ tex, onSpot }: { tex: BookTextures; onSpot: (room
     camera.position.set(target.x + Math.cos(yaw) * Math.cos(pitch) * 10, target.y + Math.sin(pitch) * 10, target.z + Math.sin(yaw) * Math.cos(pitch) * 10);
     camera.lookAt(target);
     // tall enough for the folded page stacks, which rise well above the open room
-    const viewH = 1.7 + 1.0 * e;
+    const viewH = 1.95 + 1.05 * e;
     const narrow = size.width < 640;
     const viewW = (narrow ? 1.35 : 1.9) + (narrow ? 1.0 : 1.2) * e;
     const ortho = camera as THREE.OrthographicCamera;
@@ -308,8 +366,8 @@ export default function Book({ tex, onSpot }: { tex: BookTextures; onSpot: (room
     <group>
       {pageMats.map((m, k) => (
         <group key={k} ref={(el) => void (pageRefs.current[k] = el)}>
-          <mesh geometry={pageGeo.front} material={m.front} />
-          <mesh geometry={pageGeo.back} material={m.back} />
+          <mesh geometry={pageGeo[k].front} material={m.front} ref={k === N ? (el) => void (coverRefs.current.front = el) : undefined} />
+          <mesh geometry={pageGeo[k].back} material={m.back} ref={k === 0 ? (el) => void (coverRefs.current.back = el) : undefined} />
           {hots.front[k].map(({ room, hot }) => (
             <Hotspot key={`f${hot.spot}`} hot={hot} room={room} onPick={pick(room)} />
           ))}
@@ -323,6 +381,8 @@ export default function Book({ tex, onSpot }: { tex: BookTextures; onSpot: (room
             lineWidth={1.7}
             transparent
           />
+          {k === N && <Line ref={(el) => void (borderRefs.current[0] = el as unknown as Line2 | null)} points={coverBorders.front} color={INK_HEX} lineWidth={2.2} />}
+          {k === 0 && <Line ref={(el) => void (borderRefs.current[1] = el as unknown as Line2 | null)} points={coverBorders.back} color={INK_HEX} lineWidth={2.2} />}
         </group>
       ))}
       {floors.map((fl, p) => (

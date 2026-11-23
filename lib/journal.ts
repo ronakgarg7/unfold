@@ -55,3 +55,8 @@ export async function updateEntry(id: string, text: string): Promise<void> {
 export async function deleteEntry(id: string): Promise<void> {
   writeAll(readAll().filter((e) => e.id !== id));
 }
+
+/** Everything, for a backup download. */
+export function exportAll(): string {
+  return JSON.stringify(readAll(), null, 2);
+}

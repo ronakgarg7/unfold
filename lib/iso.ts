@@ -12,12 +12,12 @@
 // The corner is [0, 0, 0]; the floor runs to 1 on both axes; the walls are 1 high.
 
 import type { Pt, Sketch } from "./sketch";
-import { shade, soften } from "./style";
+import { look, shade, soften } from "./style";
 
 export type V3 = [number, number, number];
-type IsoPopUp = { size: number; at: [number, number]; draw: (s: Sketch) => void; halo: number };
+export type IsoPopUp = { size: number; at: [number, number]; draw: (s: Sketch) => void; halo: number };
 
-const OPEN_PITCH = (32 * Math.PI) / 180; // must match the camera in Book.tsx
+export const OPEN_PITCH = (32 * Math.PI) / 180; // must match the camera in Book.tsx
 const SQ = Math.SQRT1_2;
 const K = SQ * Math.tan(OPEN_PITCH);
 const BASE = 0.996;
@@ -57,17 +57,18 @@ export class Iso {
     return len / this.L.size;
   }
 
-  /** Pen for furniture lines. */
+  /** Clean lines for furniture: one steady pen stroke, no doubled edges. */
   private lo(o: LineOpts) {
+    if (look.pen === "clean") return { mask: true, w: 2, rough: 0.35, overshoot: 0, ...o };
     // a lighter, looser hand: thinner line, more wobble, ends that run past the corners
     const s = this.s!;
     return { mask: true, rough: 1.15, overshoot: 0.05, ...o, w: (o.w ?? 2) * 0.82, alpha: (o.alpha ?? 1) * (0.72 + s.r() * 0.28) };
   }
 
-  /** Nudge each vertex a touch so corners don't meet perfectly. */
+  /** Nudge each vertex a touch so corners don't meet perfectly (sketchy pen only). */
   private jig(q: Pt[]): Pt[] {
     // curves (many points) keep their shape; only straight-edged outlines get loose corners
-    if (!this.s || q.length > 8) return q;
+    if (look.pen === "clean" || !this.s || q.length > 8) return q;
     const s = this.s;
     const a = 0.0035;
     return q.map(([x, y]) => [x + (s.r() - 0.5) * 2 * a, y + (s.r() - 0.5) * 2 * a] as Pt);
@@ -96,8 +97,8 @@ export class Iso {
     if (!this.s) return;
     const { closed, ...rest } = o;
     const j = this.jig(q);
-    // close the loop by hand, letting the end run past the start
-    if (closed) this.s.stroke([...j, j[0]], { ...this.lo(rest), closed: false });
+    // sketchy: close the loop by hand, letting the end run past the start
+    if (closed && look.pen === "sketchy") this.s.stroke([...j, j[0]], { ...this.lo(rest), closed: false });
     else this.s.stroke(j, { ...this.lo(rest), closed });
   }
 
@@ -105,7 +106,7 @@ export class Iso {
   box(x: number, y: number, z: number, dx: number, dy: number, dz: number, top: Fill = WHITE, o: LineOpts & { sideA?: Fill; sideB?: Fill; color?: string } = {}) {
     const { color, ...rest } = o;
     // coloured version: the colour on top, a little darker on the sides
-    if (color) {
+    if (color && look.color) {
       top = soften(color);
       rest.sideA = shade(top, 0.95);
       rest.sideB = shade(top, 0.89);
@@ -137,7 +138,7 @@ export class Iso {
   /** Upright cylinder (or a cone when r2 differs). */
   cyl(cx: number, cy: number, z: number, r: number, h: number, fill: Fill = WHITE, o: LineOpts & { r2?: number; side?: Fill; color?: string } = {}) {
     const { color, ...rest } = o;
-    if (color) {
+    if (color && look.color) {
       fill = soften(color);
       rest.side = shade(fill, 0.93);
     }

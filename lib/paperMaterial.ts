@@ -1,7 +1,7 @@
 import * as THREE from "three";
 
-export const INK = new THREE.Color(0.169, 0.122, 0.839); // #2b1fd6
-const PAPER = new THREE.Color(0.985, 0.979, 0.958);
+export const INK = new THREE.Color(0.769, 0.086, 0.11); // #c4161c
+export const PAPER = new THREE.Color(0.985, 0.979, 0.958);
 
 const vertex = /* glsl */ `
   varying vec2 vUv;
@@ -35,7 +35,8 @@ const fragment = /* glsl */ `
   }
 
   void main() {
-    vec4 t = texture2D(uTex, vUv);
+    // the peak above the walls carries on the wall's top edge
+    vec4 t = texture2D(uTex, vec2(vUv.x, min(vUv.y, 0.996)));
     if (t.a < 0.25) discard;
     float ink = clamp((t.a - 0.5) * 2.0, 0.0, 1.0);
     vec3 wash = t.rgb;

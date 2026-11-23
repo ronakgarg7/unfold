@@ -10,10 +10,10 @@
 // Pop-up positions are [s, t]: s = distance along the right wall, t = along the left wall.
 
 import type { Pt, Sketch } from "./sketch";
-import { isoLayers, WHITE, type V3, type Iso } from "./iso";
-import { tint } from "./style";
+import { isoLayers, WHITE, SIDE_A, SIDE_B, type V3, type Iso } from "./iso";
+import { look, tint } from "./style";
 
-type PopUp = { size: number; at: [number, number]; draw: (s: Sketch) => void; halo?: number };
+export type PopUp = { size: number; at: [number, number]; draw: (s: Sketch) => void; halo?: number };
 export type Room = {
   name: string;
   mood: string;
@@ -25,9 +25,81 @@ export type Room = {
 
 const F = (a: number, b: number): Pt => [a, 1 - b]; // floor coords → canvas
 
+function baseboard(s: Sketch, color = "#e9dfcf") {
+  s.box(-0.02, 0.93, 1.04, 0.09, color, { w: 2.2 });
+}
+
+function planks(s: Sketch, color: string, n = 7, alongRight = true) {
+  s.washAll(color, 0.8);
+  for (let i = 1; i < n; i++) {
+    const v = i / n;
+    if (alongRight) s.line(0, 1 - v, 1, 1 - v, { w: 1.8, alpha: 0.6 });
+    else s.line(v, 0, v, 1, { w: 1.8, alpha: 0.6 });
+    // staggered plank joints
+    for (let j = 0; j < 2; j++) {
+      const p = (s.r() * 0.8 + 0.1) as number;
+      if (alongRight) s.line(p, 1 - v, p, 1 - v + 1 / n, { w: 1.4, alpha: 0.5 });
+      else s.line(v, p, v + 1 / n, p, { w: 1.4, alpha: 0.5 });
+    }
+  }
+}
+
+function tiles(s: Sketch, n: number, alpha = 0.45) {
+  for (let i = 1; i < n; i++) {
+    s.line(i / n, 0, i / n, 1, { w: 1.3, alpha });
+    s.line(0, i / n, 1, i / n, { w: 1.3, alpha });
+  }
+}
+
+function frame(s: Sketch, x: number, y: number, w: number, h: number, inner: string, doodle?: (s: Sketch) => void) {
+  s.box(x, y, w, h, "#fbf6ea", { w: 2.4 });
+  s.box(x + w * 0.12, y + h * 0.12, w * 0.76, h * 0.76, inner, { w: 1.6 });
+  doodle?.(s);
+}
+
+function plant(s: Sketch, cx: number, by: number, sc: number, pot = "#e9a07c", mask = false) {
+  s.shape(
+    [
+      [cx - 0.09 * sc, by - 0.16 * sc],
+      [cx + 0.09 * sc, by - 0.16 * sc],
+      [cx + 0.065 * sc, by],
+      [cx - 0.065 * sc, by],
+    ],
+    pot,
+    { mask },
+  );
+  const leaves: [number, number, number][] = [
+    [-0.08, -0.32, -0.6],
+    [0.0, -0.4, 0],
+    [0.08, -0.3, 0.6],
+    [-0.12, -0.22, -1],
+    [0.12, -0.22, 1],
+  ];
+  for (const [dx, dy, rot] of leaves) {
+    const lx = cx + dx * sc;
+    const ly = by + dy * sc;
+    const pts = s.ellipsePts(0, 0, 0.035 * sc, 0.085 * sc).map(([x, y]) => [lx + x * Math.cos(rot) - y * Math.sin(rot), ly + x * Math.sin(rot) + y * Math.cos(rot)] as Pt);
+    s.shape(pts, "#a9d39a", { mask, w: 1.8 });
+    s.line(cx, by - 0.16 * sc, lx, ly, { w: 1.4, alpha: 0.8, mask });
+  }
+}
+
+function fairyLights(s: Sketch, x1: number, x2: number, y: number, sag = 0.06) {
+  const pts: Pt[] = [];
+  for (let i = 0; i <= 20; i++) {
+    const t = i / 20;
+    pts.push([x1 + (x2 - x1) * t, y + Math.sin(t * Math.PI * 3) ** 2 * sag]);
+  }
+  s.stroke(pts, { w: 1.6 });
+  for (let i = 1; i < 20; i += 2) {
+    const [x, yy] = pts[i];
+    s.blob(x, yy + 0.022, 0.011, 0.016, "#ffe08a", { w: 1.4 });
+  }
+}
+
 // ---------------------------------------------------------------------------
 
-// Bedroom — ink on paper with a soft wash, everything a cut-out sticker.
+// Bedroom — blue ink on white paper, everything a cut-out sticker (after the reference sketch).
 // In the coloured version the same pieces get soft pastel washes.
 
 const BED = {
@@ -150,7 +222,7 @@ function isoCurtain(iso: Iso, cx: number, b0: number, b1: number, rz: number, he
     [cx, b1, rz - 0.01],
   ];
   for (let i = 0; i <= folds * 2; i++) pts.push([cx, b1 - ((b1 - b0) * i) / (folds * 2), hem + (i % 2 ? 0 : 0.014)]);
-  iso.face(pts, color, { w: 2.4 });
+  iso.face(pts, look.color ? color : WHITE, { w: 2.4 });
   for (let i = 1; i < folds; i++) {
     const b = b0 + ((b1 - b0) * i) / folds;
     iso.line([cx, b, rz - 0.03], [cx, b + 0.004, hem + 0.03], { w: 1.4 });
@@ -163,7 +235,7 @@ const bedroom: Room = {
   name: "bedroom",
   mood: "slow mornings, late-night thinking",
   left(s) {
-    s.washAll(tint(BED.wall), 1);
+    if (look.color) s.washAll(tint(BED.wall), 1);
     // window
     const win = s.rectPts(0.22, 0.2, 0.46, 0.42);
     s.sticker(win, 8);
@@ -194,7 +266,7 @@ const bedroom: Room = {
     tapedPhoto(s, 0.035, 0.55, 0.085, 0.1, 0.04);
   },
   right(s) {
-    s.washAll(tint(BED.wall), 1);
+    if (look.color) s.washAll(tint(BED.wall), 1);
     // stars
     s.star(0.33, 0.1, 0.016);
     s.star(0.38, 0.16, 0.022);
@@ -292,7 +364,7 @@ const bedroom: Room = {
     note(0.85, 0.44, 0.07, 0.1, 3, -0.06);
   },
   floor(s) {
-    s.washAll(tint(BED.floor), 1);
+    if (look.color) s.washAll(tint(BED.floor), 1);
     // floor boards running away from the left wall
     for (let i = 1; i < 9; i++) {
       const v = i / 9;
@@ -573,7 +645,7 @@ const bathroom: Room = {
   name: "bathroom",
   mood: "resets, mirror talks",
   left(s) {
-    s.washAll(tint(BATH.wall), 1);
+    if (look.color) s.washAll(tint(BATH.wall), 1);
     // shower recess: tiled panel from the floor up
     const sx0 = 0.12;
     const sx1 = 0.6;
@@ -668,7 +740,7 @@ const bathroom: Room = {
     );
   },
   right(s) {
-    s.washAll(tint(BATH.wall), 1);
+    if (look.color) s.washAll(tint(BATH.wall), 1);
     // framed picture
     tapedPhoto(s, 0.14, 0.12, 0.12, 0.13, 0.02, "mountain");
     // floating shelves
@@ -795,7 +867,7 @@ const bathroom: Room = {
     sparkle(s, 0.56, 0.3, 0.022);
   },
   floor(s) {
-    s.washAll(tint(BATH.floor), 1);
+    if (look.color) s.washAll(tint(BATH.floor), 1);
     // tiles
     for (let i = 1; i < 9; i++) {
       s.line(i / 9, 0, i / 9, 1, { w: 1.4, alpha: 0.5 });
@@ -827,7 +899,7 @@ const bathroom: Room = {
         [CX, c1, RZ - 0.01],
       ];
       for (let i = 0; i <= folds * 2; i++) curtain.push([CX, c1 - ((c1 - c0) * i) / (folds * 2), HEM + (i % 2 ? 0 : 0.015)]);
-      iso.face(curtain, BATH.curtain, { w: 2.4 });
+      iso.face(curtain, look.color ? BATH.curtain : WHITE, { w: 2.4 });
       for (let i = 1; i < folds; i++) {
         const y = c0 + ((c1 - c0) * i) / folds;
         iso.line([CX, y, RZ - 0.03], [CX, y + 0.004, HEM + 0.03], { w: 1.4 });
@@ -921,7 +993,7 @@ const bathroom: Room = {
           [0.958, 0.49, 0.03],
           [0.912, 0.49, 0.035],
         ],
-        BATH.towel,
+        look.color ? BATH.towel : WHITE,
         { w: 1.8 },
       );
     },
@@ -929,7 +1001,7 @@ const bathroom: Room = {
 };
 
 // Kitchen — after Dakshi's reference sketch: L-shaped counter, oven and hood, a tall fridge,
-// window with curtains, plants everywhere, a little table by the window.
+// window with curtains, plants everywhere, a little table by the window. Ink-only or soft colour.
 
 const KIT = {
   wall: "#fbf3da",
@@ -956,6 +1028,35 @@ const KIT = {
   flower: "#f7ccd6",
   towel: "#dbe8fb",
 };
+
+/** Pot with a fan of big leaves and a couple of trailing vines (canvas coords, base at by). */
+function leafyPlant(s: Sketch, cx: number, by: number, sc: number, trail = 2) {
+  const fan: [number, number, number][] = [
+    [-1.1, -0.9, -1.1],
+    [-0.6, -1.5, -0.5],
+    [0.05, -1.75, 0.05],
+    [0.65, -1.5, 0.55],
+    [1.1, -0.9, 1.1],
+  ];
+  for (const [dx, dy, rot] of fan) almondLeaf(s, cx + dx * sc * 0.05, by + dy * sc * 0.05, sc * 0.045, rot, KIT.leaf);
+  const lines: Pt[][] = [];
+  if (trail > 0)
+    lines.push([
+      [cx - sc * 0.045, by - sc * 0.02],
+      [cx - sc * 0.075, by + sc * 0.08],
+      [cx - sc * 0.065, by + sc * 0.18],
+    ]);
+  if (trail > 1)
+    lines.push([
+      [cx + sc * 0.045, by - sc * 0.02],
+      [cx + sc * 0.07, by + sc * 0.07],
+    ]);
+  if (lines.length) vines(s, lines, sc * 0.028, KIT.leaf);
+  const pot: Pt[] = [...s.ellipsePts(cx, by - sc * 0.045, sc * 0.05, sc * 0.045, 0, Math.PI, 14)];
+  pot.unshift([cx + sc * 0.05, by - sc * 0.045]);
+  s.sticker(pot, 3, 0.16, tint(KIT.pot));
+  s.stroke(pot, { closed: true, w: 2 });
+}
 
 function note(s: Sketch, x: number, y: number, w: number, h: number, rot: number, kind: "heart" | "list" | "leaf", c: string) {
   const cx = x + w / 2;
@@ -1030,7 +1131,7 @@ const kitchen: Room = {
   name: "kitchen",
   mood: "nourishment, home, people over",
   left(s) {
-    s.washAll(tint(KIT.wall), 1);
+    if (look.color) s.washAll(tint(KIT.wall), 1);
     // tiled backsplash above the counter (counter runs from the corner to x≈0.45)
     s.sticker(s.rectPts(0.44, 0.42, 0.58, 0.24), 2, 0.1, tint(KIT.tile));
     for (let x = 0.44; x < 1; x += 0.045) s.line(x, 0.42, x, 0.66, { w: 1, alpha: 0.45 });
@@ -1125,7 +1226,7 @@ const kitchen: Room = {
     note(s, 0.035, 0.67, 0.075, 0.09, 0.03, "list", KIT.note);
   },
   right(s) {
-    s.washAll(tint(KIT.wall), 1);
+    if (look.color) s.washAll(tint(KIT.wall), 1);
     // backsplash behind the counter
     s.sticker(s.rectPts(-0.02, 0.42, 0.76, 0.24), 2, 0.1, tint(KIT.tile));
     for (let x = 0.025; x < 0.74; x += 0.045) s.line(x, 0.42, x, 0.66, { w: 1, alpha: 0.45 });
@@ -1209,7 +1310,7 @@ const kitchen: Room = {
     s.line(0.6, 0.31, 0.6, 0.36, { w: 2.4 });
   },
   floor(s) {
-    s.washAll(tint(KIT.floor), 1);
+    if (look.color) s.washAll(tint(KIT.floor), 1);
     for (let i = 1; i < 9; i++) {
       const v = i / 9;
       s.line(v, 0, v, 1, { w: 1.5, alpha: 0.55 });
@@ -1246,7 +1347,7 @@ const kitchen: Room = {
           [0.89, FF, 0.66],
           [0.84, FF, 0.66],
         ],
-        KIT.note,
+        look.color ? KIT.note : WHITE,
         { w: 1.4 },
       );
       for (const z of [0.6, 0.62, 0.64]) iso.line([0.85, FF, z], [0.88, FF, z], { w: 1, alpha: 0.7 });
@@ -1257,7 +1358,7 @@ const kitchen: Room = {
           [0.9, FF, 0.4],
           [0.84, FF, 0.4],
         ],
-        KIT.note2,
+        look.color ? KIT.note2 : WHITE,
         { w: 1.4 },
       );
       iso.at([0.87, FF, 0.36], (s, [x, y], u) => s.blob(x, y, 0.01 * u, 0.009 * u, null, { w: 1.3, mask: true }));
@@ -1336,7 +1437,7 @@ const kitchen: Room = {
 };
 
 // Balcony — after Dakshi's reference: sliding door, plants everywhere, a bean bag with a throw,
-// railings open to the sky.
+// railings open to the sky. Ink-only or soft colour.
 
 const BAL = {
   wall: "#e9e3f1",
@@ -1449,7 +1550,7 @@ const balcony: Room = {
   name: "balcony",
   mood: "late nights, the big picture, gratitude",
   left(s) {
-    s.washAll(tint(BAL.wall), 1);
+    if (look.color) s.washAll(tint(BAL.wall), 1);
     // sliding glass door with a peek of the room inside
     const door = s.rectPts(0.14, 0.2, 0.46, 0.8);
     s.sticker(door, 6, 0.2);
@@ -1475,7 +1576,7 @@ const balcony: Room = {
       s.line(x + 0.02, y + 0.12, x + 0.08, y + 0.03, { w: 1.1, alpha: 0.6 });
     }
     // inside: the room is lit — floor lamp glowing, armchair, picture (faint)
-    s.glow(0.22, 0.47, 0.16, BAL.light, 0.55);
+    if (look.color) s.glow(0.22, 0.47, 0.16, BAL.light, 0.55);
     s.line(0.22, 0.88, 0.22, 0.5, { w: 1.4, alpha: 0.55 });
     s.stroke(
       [
@@ -1527,7 +1628,7 @@ const balcony: Room = {
       [0.1, 0.42],
       [0.06, 0.42],
     ];
-    s.glow(0.08, 0.38, 0.14, BAL.light, 0.6);
+    if (look.color) s.glow(0.08, 0.38, 0.14, BAL.light, 0.6);
     s.sticker(lan, 3, 0.18, tint(BAL.lantern));
     s.stroke(lan, { closed: true, w: 2 });
     s.stroke(
@@ -1595,13 +1696,14 @@ const balcony: Room = {
     s.stroke(pot, { closed: true, w: 2 });
   },
   right(s) {
-    s.washAll(tint(BAL.wall), 1);
+    if (look.color) s.washAll(tint(BAL.wall), 1);
     // open to the night: moon, stars, dark hills and a little town with lit windows
     const sky = s.rectPts(-0.02, -0.02, 1.04, 0.64);
     s.sticker(sky, 0, 0, tint(BAL.sky));
-    s.fill(s.rectPts(-0.02, 0.4, 1.04, 0.22), BAL.skyLow, { alpha: 0.6, jitter: 0 });
+    if (look.color) s.fill(s.rectPts(-0.02, 0.4, 1.04, 0.22), BAL.skyLow, { alpha: 0.6, jitter: 0 });
+    else s.hatch(sky, 0.011, -1.0, 1.1, 0.42);
     // moon
-    s.glow(0.83, 0.25, 0.12, BAL.moon, 0.7);
+    if (look.color) s.glow(0.83, 0.25, 0.12, BAL.moon, 0.7);
     const moon: Pt[] = [...s.ellipsePts(0.83, 0.25, 0.045, 0.045, 0.6, 5.7, 20), ...s.ellipsePts(0.855, 0.235, 0.035, 0.035, 5.2, 1.1, 14)];
     s.sticker(moon, 3, 0, tint(BAL.moon));
     s.stroke(moon, { closed: true, w: 2 });
@@ -1701,13 +1803,13 @@ const balcony: Room = {
     for (let i = 2; i < 40; i += 3) {
       const [x, y] = wire[i];
       const b = s.ellipsePts(x, y + 0.016, 0.009, 0.012);
-      s.glow(x, y + 0.016, 0.045, BAL.light, 0.55);
+      if (look.color) s.glow(x, y + 0.016, 0.045, BAL.light, 0.55);
       s.sticker(b, 2, 0.08, tint(BAL.bulb));
       s.stroke(b, { closed: true, w: 1.3 });
     }
   },
   floor(s) {
-    s.washAll(tint(BAL.deck), 1);
+    if (look.color) s.washAll(tint(BAL.deck), 1);
     for (let i = 1; i < 12; i++) {
       const v = i / 12;
       s.line(0, v, 1, v, { w: 1.5, alpha: 0.55 });
@@ -1958,7 +2060,7 @@ const balcony: Room = {
       iso.path(loop, { w: 1.4 });
       for (let i = 2; i < 24; i += 3)
         iso.at(loop[i], (s, [x, y], u) => {
-          s.glow(x, y + 0.012 * u, 0.05 * u, BAL.light, 0.55);
+          if (look.color) s.glow(x, y + 0.012 * u, 0.05 * u, BAL.light, 0.55);
           s.blob(x, y + 0.012 * u, 0.008 * u, 0.011 * u, tint(BAL.bulb), { w: 1.3, mask: true });
         });
       // flower box hooked on the inside of the rail, flowers growing out of it
@@ -2000,3 +2102,6 @@ export function drawFrontCover(s: Sketch) {
 export function drawBackCover(s: Sketch) {
   s.rect(0.07, 0.07, 0.86, 0.86, { w: 3 });
 }
+
+// shared drawing helpers, reused by the wedding invite rooms (lib/invite.ts)
+export { F, baseboard, planks, tiles, fairyLights, tapedPhoto, sparkle, almondLeaf, vines, scallopRug, soft, flower, cloud };

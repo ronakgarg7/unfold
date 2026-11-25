@@ -603,9 +603,9 @@ function balloons(s: Sketch, x: number, y: number) {
   }
 }
 
-const reception: Room = {
-  name: "reception",
-  mood: ev("reception").tagline,
+const lagan: Room = {
+  name: "lagan",
+  mood: ev("lagan").tagline,
   left(s) {
     wash(s, REC.wall);
     for (const x of [0.06, 0.78]) {
@@ -622,7 +622,7 @@ const reception: Room = {
   right(s) {
     wash(s, REC.wall);
     fairyLights(s, 0.02, 0.98, 0.06, 0.05);
-    inviteCard(s, ev("reception"), 0.28, 0.14, 0.44, 0.42, REC.accent);
+    inviteCard(s, ev("lagan"), 0.28, 0.14, 0.44, 0.42, REC.accent);
     couplePhoto(s, 0.06, 0.26, 0.13, 0.16, -0.03);
     couplePhoto(s, 0.8, 0.2, 0.12, 0.14, 0.05);
     balloons(s, 0.12, 0.62);
@@ -850,9 +850,9 @@ function neon(s: Sketch, str: string, x: number, y: number, size: number, c: str
   s.text(str, x, y, size, { rotate: rot });
 }
 
-const party: Room = {
-  name: "party",
-  mood: ev("party").tagline,
+const ringSangeet: Room = {
+  name: "ring-sangeet",
+  mood: ev("ring-sangeet").tagline,
   left(s) {
     if (look.color) s.washAll(tint(SAN.wall, "#ffffff"), 1);
     // spotlight beams from the top corners
@@ -892,7 +892,7 @@ const party: Room = {
   right(s) {
     if (look.color) s.washAll(tint(SAN.wall, "#ffffff"), 1);
     fairyLights(s, 0.02, 0.98, 0.06, 0.06);
-    inviteCard(s, ev("party"), 0.3, 0.16, 0.4, 0.44, SAN.accent);
+    inviteCard(s, ev("ring-sangeet"), 0.3, 0.16, 0.4, 0.44, SAN.accent);
     // a photo-booth strip taped up next to the card
     const strip = s.rectPts(0.08, 0.2, 0.11, 0.42);
     s.sticker(strip, 3, 0.2, tint("#fffaf0"));
@@ -1027,7 +1027,7 @@ const party: Room = {
   ]),
 };
 
-export const ROOMS: Room[] = [haldi, wedding, reception, party];
+export const ROOMS: Room[] = [haldi, ringSangeet, lagan, wedding];
 
 // ---------------------------------------------------------------------------
 // covers

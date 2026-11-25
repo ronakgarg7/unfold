@@ -3,13 +3,8 @@
 import { useEffect, useState } from "react";
 import { WEDDING, fmtDay, getGuest } from "@/lib/wedding";
 
-const KEY = "unfold.rsvp.v1";
-
-type Reply = { name: string; events: string[]; guests: number; note: string; sentAt: number };
-
 /**
- * The RSVP card. For now replies are only kept in this browser (mock); a real invite would send
- * them to the couple (a small database, a form, or a prefilled WhatsApp message).
+ * The RSVP card. Creates a prefilled WhatsApp message for guests to send.
  */
 export default function Rsvp({ onClose, preselect }: { onClose: () => void; preselect?: string }) {
   const [name, setName] = useState(getGuest());
@@ -17,22 +12,8 @@ export default function Rsvp({ onClose, preselect }: { onClose: () => void; pres
   const [guests, setGuests] = useState(1);
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
-  const [sent, setSent] = useState<Reply | null>(null);
+  const [whatsappUrl, setWhatsappUrl] = useState("");
   const [leaving, setLeaving] = useState(false);
-
-  useEffect(() => {
-    try {
-      const prev = JSON.parse(localStorage.getItem(KEY) || "null") as Reply | null;
-      if (prev) {
-        setName(prev.name);
-        setEvents(prev.events);
-        setGuests(prev.guests);
-        setNote(prev.note);
-      }
-    } catch {
-      /* nothing saved yet */
-    }
-  }, []);
 
   const close = () => {
     setLeaving(true);
@@ -50,13 +31,23 @@ export default function Rsvp({ onClose, preselect }: { onClose: () => void; pres
   const send = () => {
     if (!name.trim()) return setError("tell us who you are");
     if (events.length === 0) return setError("tick at least one event, or say a sad no below");
-    const reply: Reply = { name: name.trim(), events, guests, note: note.trim(), sentAt: Date.now() };
-    try {
-      localStorage.setItem(KEY, JSON.stringify(reply));
-    } catch {
-      /* ignore */
-    }
-    setSent(reply);
+    const reply = { name: name.trim(), events, guests, note: note.trim() };
+    const attending = WEDDING.events
+      .filter((event) => reply.events.includes(event.key))
+      .map((event) => `${event.name} (${fmtDay(event.start)})`)
+      .join(", ");
+    const message = [
+      `Wedding RSVP — ${WEDDING.couple.join(" & ")}`,
+      `Name: ${reply.name}`,
+      `Attending: ${attending}`,
+      `Number attending: ${reply.guests}`,
+      reply.note && `Note: ${reply.note}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const url = `https://wa.me/${WEDDING.rsvpWhatsApp}?text=${encodeURIComponent(message)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+    setWhatsappUrl(url);
   };
 
   return (
@@ -69,16 +60,17 @@ export default function Rsvp({ onClose, preselect }: { onClose: () => void; pres
       </button>
       <article className="ev-card ev-rsvp-card">
         <div className="ev-inner">
-          {sent ? (
+          {whatsappUrl ? (
             <div className="rsvp-thanks">
               <div className="rsvp-seal" aria-hidden="true">
                 {WEDDING.initials}
               </div>
-              <h2 className="ev-name">thank you, {sent.name}</h2>
-              <p className="ev-tagline">
-                we&apos;ll see you at {sent.events.length === WEDDING.events.length ? "everything" : sent.events.map((k) => WEDDING.events.find((e) => e.key === k)?.name).join(", ")}
-              </p>
-              <button className="ev-stamp" onClick={() => setSent(null)}>
+              <h2 className="ev-name">one last step</h2>
+              <p className="ev-tagline">your RSVP is ready in WhatsApp. review it and tap send to confirm.</p>
+              <a className="ev-stamp ev-rsvp" href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                open WhatsApp
+              </a>
+              <button className="ev-stamp" onClick={() => setWhatsappUrl("")}>
                 change my reply
               </button>
             </div>
@@ -130,7 +122,7 @@ export default function Rsvp({ onClose, preselect }: { onClose: () => void; pres
               </div>
               <label className="rsvp-field">
                 <span>a note for the couple</span>
-                <textarea rows={2} value={note} placeholder="can't wait to dance at the party!" onChange={(e) => setNote(e.target.value)} />
+                <textarea rows={2} value={note} placeholder="can't wait to dance at the sangeet!" onChange={(e) => setNote(e.target.value)} />
               </label>
               <div className="ev-actions">
                 {error && <span className="cu-error">{error}</span>}

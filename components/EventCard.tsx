@@ -41,6 +41,7 @@ export default function EventCard({ ev, onClose, onRsvp }: { ev: WeddingEvent; o
           <div className="ev-hosts">{WEDDING.couple.join(" & ")} invite you to</div>
           <h2 className="ev-name">{ev.name}</h2>
           <div className="ev-tagline">{ev.tagline}</div>
+          <p className="ev-welcome">Our celebration will be brighter with you there.</p>
           <div className="ev-rule" aria-hidden="true" />
           <dl className="ev-facts">
             <dt>when</dt>

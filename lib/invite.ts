@@ -93,14 +93,153 @@ function inviteCard(s: Sketch, e: WeddingEvent, x: number, y: number, w: number,
   ])
     flower(s, cx, cy, 0.01, accent);
   const cx = x + w / 2;
-  s.text(e.name, cx, y + h * 0.2, 0.075);
-  s.text(e.tagline, cx, y + h * 0.36, 0.03, { weight: 500 });
-  s.line(cx - w * 0.25, y + h * 0.46, cx + w * 0.25, y + h * 0.455, { w: 1.4 });
-  s.text(fmtDay(e.start), cx, y + h * 0.58, 0.046);
-  s.text(fmtTime(e.start), cx, y + h * 0.7, 0.04, { weight: 500 });
-  s.text(e.venue, cx, y + h * 0.84, 0.03, { weight: 500 });
+  s.text(e.name, cx, y + h * 0.18, e.name.length > 20 ? 0.039 : 0.075);
+  s.text(e.tagline, cx, y + h * 0.3, 0.03, { weight: 500 });
+  const ribbonY = y + h * 0.355;
+  const ribbonH = h * 0.05;
+  const ribbon: Pt[] = [
+    [cx - w * 0.26, ribbonY],
+    [cx + w * 0.26, ribbonY],
+    [cx + w * 0.26, ribbonY + ribbonH * 0.22],
+    [cx + w * 0.31, ribbonY + ribbonH * 0.5],
+    [cx + w * 0.26, ribbonY + ribbonH * 0.78],
+    [cx + w * 0.26, ribbonY + ribbonH],
+    [cx - w * 0.26, ribbonY + ribbonH],
+    [cx - w * 0.26, ribbonY + ribbonH * 0.78],
+    [cx - w * 0.31, ribbonY + ribbonH * 0.5],
+    [cx - w * 0.26, ribbonY + ribbonH * 0.22],
+  ];
+  s.sticker(ribbon, 0.8, 0.04, tint("#f0d48a"));
+  s.stroke(ribbon, { closed: true, w: 1.1 });
+  s.text("we saved you a seat!", cx, ribbonY + ribbonH * 0.53, 0.018, { weight: 500 });
+  weddingCouple(s, x + w * 0.34, y + h * 0.43, w * 0.32, h * 0.2);
+  s.text(fmtDay(e.start), cx, y + h * 0.73, 0.046);
+  s.text(fmtTime(e.start), cx, y + h * 0.83, 0.04, { weight: 500 });
+  s.text(e.venue, cx, y + h * 0.92, 0.03, { weight: 500 });
   // little pin
   s.blob(cx, y + 0.005, 0.012, 0.012, tint("#f6a99a"), { w: 1.6 });
+}
+
+/** Small, hand-drawn wedding couple in outfits sampled from the invite's palette. */
+function weddingCouple(s: Sketch, x: number, y: number, w: number, h: number) {
+  const choose = (colors: string[]) => colors[Math.floor(s.r() * colors.length)];
+  const brideColor = choose(["#bd5141", "#a94f66", "#d18b36", "#81516f"]);
+  const groomColor = choose(["#315f50", "#3e5e83", "#75506a", "#a45b3c"]);
+  const skin = choose(["#d79a74", "#bd795b", "#e0ae83"]);
+  const gold = "#e8b84f";
+  const brideX = x + w * 0.32;
+  const groomX = x + w * 0.69;
+  const headY = y + h * 0.29;
+  const faceR = w * 0.085;
+  const shouldersY = y + h * 0.55;
+  const hemY = y + h * 0.98;
+  const shape = (points: Pt[], color: string) => s.shape(points, tint(color), { w: 1.2 });
+
+  const archX = x + w * 0.5;
+  const archBase = y + h * 0.94;
+  const toran: Pt[] = [];
+  for (let i = 0; i <= 8; i++) {
+    const t = i / 8;
+    toran.push([x + w * (0.12 + t * 0.76), y + h * 0.06 + Math.sin(t * Math.PI) * h * 0.035]);
+  }
+  s.stroke(toran, { w: 1.1, alpha: 0.75 });
+  toran.slice(1, -1).forEach(([px, py], i) => s.blob(px, py + h * 0.035, w * 0.016, h * 0.025, tint(MARIGOLD[i % MARIGOLD.length]), { w: 1 }));
+  s.stroke(s.ellipsePts(archX, archBase, w * 0.47, h * 0.86, Math.PI, Math.PI * 2, 20), { w: 1.2, alpha: 0.65 });
+  s.stroke(s.ellipsePts(archX, archBase, w * 0.39, h * 0.7, Math.PI, Math.PI * 2, 18), { w: 0.9, alpha: 0.55 });
+  s.line(x + w * 0.03, archBase, x + w * 0.03, y + h, { w: 1.2, alpha: 0.65 });
+  s.line(x + w * 0.97, archBase, x + w * 0.97, y + h, { w: 1.2, alpha: 0.65 });
+  flower(s, archX, y + h * 0.035, w * 0.035, gold);
+  for (let i = 0; i < 5; i++) {
+    const px = x + w * (0.18 + i * 0.16);
+    s.circle(px, y + h * 0.2, w * 0.012, { w: 1, alpha: 0.75 });
+  }
+  sparkle(s, x + w * 0.09, y + h * 0.56, w * 0.035);
+  sparkle(s, x + w * 0.91, y + h * 0.56, w * 0.035);
+
+  shape(
+    [
+      [brideX - faceR * 1.6, headY - faceR * 0.6],
+      [brideX + faceR * 1.6, headY - faceR * 0.6],
+      [brideX + w * 0.17, hemY],
+      [brideX - w * 0.17, hemY],
+    ],
+    "#f1d89f",
+  );
+  shape(
+    [
+      [brideX - w * 0.12, shouldersY],
+      [brideX + w * 0.12, shouldersY],
+      [brideX + w * 0.23, hemY],
+      [brideX - w * 0.23, hemY],
+    ],
+    brideColor,
+  );
+  s.line(brideX, shouldersY + h * 0.08, brideX, hemY - h * 0.02, { w: 1, alpha: 0.75 });
+  for (let row = 0; row < 4; row++)
+    for (let col = -1; col <= 1; col++) {
+      const offset = row % 2 ? w * 0.045 : 0;
+      const px = brideX + col * w * 0.09 + offset;
+      const py = shouldersY + h * (0.15 + row * 0.085);
+      s.circle(px, py, w * 0.014, { w: 1, alpha: 0.85 });
+      s.circle(px, py, w * 0.0045, { w: 1, alpha: 0.9 });
+    }
+  s.line(brideX - w * 0.18, hemY - h * 0.06, brideX + w * 0.18, hemY - h * 0.06, { w: 1.5, alpha: 0.8 });
+  s.blob(brideX, headY, faceR * 1.25, faceR * 1.3, tint("#553b35"), { w: 1 });
+  s.blob(brideX, headY + faceR * 0.12, faceR * 0.88, faceR, tint(skin), { w: 1.1 });
+  s.blob(brideX, headY - faceR * 0.83, faceR * 1.1, faceR * 0.35, tint(gold), { w: 1 });
+  s.circle(brideX - faceR * 0.3, headY + faceR * 0.04, faceR * 0.08, { w: 1 });
+  s.circle(brideX + faceR * 0.3, headY + faceR * 0.04, faceR * 0.08, { w: 1 });
+  s.stroke(s.ellipsePts(brideX, headY + faceR * 0.43, faceR * 0.2, faceR * 0.1, 0, Math.PI, 8), { w: 1 });
+  s.circle(brideX, headY + faceR * 1.15, faceR * 0.12, { w: 1, alpha: 0.8 });
+  s.stroke(s.ellipsePts(brideX, headY + faceR * 1.45, faceR * 1.1, faceR * 0.42, 0, Math.PI), { w: 1.2, alpha: 0.8 });
+  for (const side of [-1, 1]) s.circle(brideX + side * faceR * 1.08, headY + faceR * 0.6, faceR * 0.12, { w: 1.2 });
+
+  shape(
+    [
+      [groomX - w * 0.13, shouldersY],
+      [groomX + w * 0.13, shouldersY],
+      [groomX + w * 0.16, hemY],
+      [groomX - w * 0.16, hemY],
+    ],
+    groomColor,
+  );
+  shape(
+    [
+      [groomX - w * 0.06, shouldersY],
+      [groomX, shouldersY + h * 0.1],
+      [groomX + w * 0.06, shouldersY],
+    ],
+    "#fff1d2",
+  );
+  s.line(groomX, shouldersY + h * 0.1, groomX, hemY - h * 0.02, { w: 1, alpha: 0.8 });
+  for (let i = 0; i < 3; i++) {
+    const py = shouldersY + h * (0.18 + i * 0.12);
+    s.circle(groomX, py, w * 0.014, { w: 1 });
+    s.circle(groomX, py, w * 0.005, { w: 1 });
+  }
+  s.blob(groomX, headY, faceR * 1.2, faceR * 1.25, tint("#553b35"), { w: 1 });
+  s.blob(groomX, headY + faceR * 0.12, faceR * 0.88, faceR, tint(skin), { w: 1.1 });
+  shape(
+    [
+      [groomX - faceR * 1.3, headY - faceR * 0.5],
+      [groomX - faceR * 1.1, headY - faceR * 1.1],
+      [groomX - faceR * 0.4, headY - faceR * 1.5],
+      [groomX + faceR * 0.5, headY - faceR * 1.35],
+      [groomX + faceR * 1.3, headY - faceR * 0.5],
+      [groomX, headY - faceR * 0.75],
+    ],
+    groomColor,
+  );
+  s.line(groomX - faceR * 1.1, headY - faceR * 0.62, groomX + faceR * 1.1, headY - faceR * 0.62, { w: 1.2 });
+  s.line(groomX - faceR * 0.8, headY - faceR * 0.95, groomX + faceR * 0.65, headY - faceR * 1.08, { w: 0.9 });
+  s.circle(groomX + faceR * 0.18, headY - faceR * 1.35, faceR * 0.14, { w: 1.1 });
+  almondLeaf(s, groomX + faceR * 1.2, headY - faceR * 1.55, faceR * 1.1, 0.7, LEAF, true);
+  s.circle(groomX - faceR * 0.3, headY + faceR * 0.04, faceR * 0.08, { w: 1 });
+  s.circle(groomX + faceR * 0.3, headY + faceR * 0.04, faceR * 0.08, { w: 1 });
+  s.stroke(s.ellipsePts(groomX, headY + faceR * 0.43, faceR * 0.2, faceR * 0.1, 0, Math.PI, 8), { w: 1 });
+  s.line(groomX - faceR * 0.5, headY + faceR * 0.54, groomX, headY + faceR * 0.72, { w: 1.2 });
+  s.line(groomX, headY + faceR * 0.72, groomX + faceR * 0.5, headY + faceR * 0.54, { w: 1.2 });
+  s.line(brideX + w * 0.1, shouldersY + h * 0.14, groomX - w * 0.1, shouldersY + h * 0.14, { w: 1.4, alpha: 0.8 });
 }
 
 /** Framed photo of the couple (two little stick portraits). */
@@ -185,6 +324,8 @@ const haldi: Room = {
   mood: ev("haldi").tagline,
   left(s) {
     wash(s, HALDI.wall);
+    jaaliPanel(s, 0.035, 0.69, 0.17, 0.25, 4, 5, 0.08);
+    jaaliPanel(s, 0.795, 0.69, 0.17, 0.25, 4, 5, 0.08);
     // a fringe of marigold strands along the top, over a mango-leaf toran
     laris(s, Array.from({ length: 19 }, (_, i) => 0.04 + i * 0.05), 0.05, 0.2, 0.012);
     toran(s, 0.0, 1.0, 0.04);
@@ -211,8 +352,11 @@ const haldi: Room = {
   },
   right(s) {
     wash(s, HALDI.wall);
+    jaaliPanel(s, 0.035, 0.66, 0.18, 0.29, 4, 5, 0.1);
+    jaaliPanel(s, 0.785, 0.66, 0.18, 0.29, 4, 5, 0.1);
     toran(s, 0.0, 1.0, 0.04);
     laris(s, [0.05, 0.1, 0.15, 0.85, 0.9, 0.95], 0.05, 0.5);
+    floralArch(s, 0.18, 0.82, 0.08);
     inviteCard(s, ev("haldi"), 0.28, 0.16, 0.44, 0.46, HALDI.accent);
     garland(s, 0.28, 0.72, 0.14, 0.03, 0.011);
     for (const [x, y, r] of [
@@ -338,7 +482,7 @@ const haldi: Room = {
   ]),
 };
 
-const WED = { wall: "#fbe7ec", drape: "#f08bb6", drape2: "#f7d98a", floor: "#faf1e6", accent: "#f9c6da", drapeLit: "#f7b3cf", pillar: GOLD, seat: "#f5b942" };
+const WED = { wall: "#f6ead8", drape: "#f08bb6", drape2: "#f7d98a", floor: "#faf1e6", accent: "#f9c6da", drapeLit: "#f7b3cf", pillar: GOLD, seat: "#f5b942" };
 
 /** Draped fabric hanging in swags across the top of a wall. */
 function swags(s: Sketch, x1: number, x2: number, y: number, n: number, c: string) {
@@ -365,6 +509,29 @@ function drapePanel(s: Sketch, x: number, top: number, w: number, c: string) {
   s.sticker(soft(pts, 2), 3, 0.18, tint(c));
   s.stroke(soft(pts, 2), { closed: true, w: 2 });
   s.line(x + w * 0.5, top + 0.02, x + w * 0.5, 0.95, { w: 1, alpha: 0.6 });
+}
+
+/** A faint diamond jaali, like carved stone latticework in a haveli window. */
+function jaaliPanel(s: Sketch, x: number, y: number, w: number, h: number, cols: number, rows: number, alpha = 0.12) {
+  const cw = w / cols;
+  const ch = h / rows;
+  for (let row = 0; row < rows; row++)
+    for (let col = 0; col < cols; col++) {
+      const left = x + col * cw;
+      const top = y + row * ch;
+      const mx = left + cw / 2;
+      const my = top + ch / 2;
+      s.stroke(
+        [
+          [mx, top],
+          [left + cw, my],
+          [mx, top + ch],
+          [left, my],
+        ],
+        { closed: true, w: 0.9, alpha },
+      );
+      if ((row + col) % 2 === 0) s.circle(mx, my, Math.min(cw, ch) * 0.055, { w: 0.8, alpha: alpha * 1.6 });
+    }
 }
 
 const MANDAP_H = 0.7;
@@ -416,6 +583,7 @@ const wedding: Room = {
   mood: ev("wedding").tagline,
   left(s) {
     wash(s, WED.wall);
+    jaaliPanel(s, 0.08, 0.72, 0.84, 0.2, 12, 3, 0.1);
     swags(s, 0.0, 1.0, 0.04, 5, WED.drape);
     drapePanel(s, 0.08, 0.06, 0.1, WED.drape2);
     drapePanel(s, 0.82, 0.06, 0.1, WED.drape2);
@@ -427,7 +595,9 @@ const wedding: Room = {
   },
   right(s) {
     wash(s, WED.wall);
+    jaaliPanel(s, 0.08, 0.72, 0.84, 0.2, 12, 3, 0.1);
     swags(s, 0.0, 1.0, 0.04, 5, WED.drape);
+    floralArch(s, 0.16, 0.84, 0.08);
     inviteCard(s, ev("wedding"), 0.28, 0.16, 0.44, 0.46, WED.accent);
     drapePanel(s, 0.08, 0.06, 0.1, WED.drape2);
     drapePanel(s, 0.82, 0.06, 0.1, WED.drape2);
@@ -531,17 +701,13 @@ const wedding: Room = {
 };
 
 const REC = {
-  wall: "#f6f1e7",
-  floor: "#e9e1d3",
-  accent: "#efe2c4",
-  cloth: "#fffaf0",
-  cake: "#fbefd9",
+  wall: "#f5e7d2",
+  floor: "#edddc5",
+  accent: "#e9b64d",
+  cloth: "#fff7e8",
   glass: "#dcebfa",
-  sofa: "#f3dccd",
-  blush: "#f7ccd6",
-  champagne: "#f5e3b0",
-  gift: ["#f7ccd6", "#cfe0f7", "#f5e3b0"],
-  runner: "#f6d6d0",
+  blush: "#f3a185",
+  runner: "#bd5141",
 };
 
 function chandelier(s: Sketch, x: number, y: number, w: number) {
@@ -559,7 +725,7 @@ function chandelier(s: Sketch, x: number, y: number, w: number) {
   }
 }
 
-/** A floral arch on the wall behind the couple's seat, with their initials on a little sign. */
+/** A floral arch with the couple's initials on a small sign. */
 function floralArch(s: Sketch, x0: number, x1: number, top: number) {
   const cx = (x0 + x1) / 2;
   const rx = (x1 - x0) / 2;
@@ -591,7 +757,7 @@ function balloons(s: Sketch, x: number, y: number) {
   const list: [number, number, string][] = [
     [-0.03, -0.05, REC.blush],
     [0.03, -0.07, "#fffaf0"],
-    [0.0, -0.11, REC.champagne],
+    [0.0, -0.11, GOLD],
     [0.05, -0.02, REC.blush],
   ];
   for (const [dx, dy] of list) s.stroke([[x, y + 0.12], [x + dx * 0.6, y + 0.05], [x + dx, y + dy + 0.03]], { w: 1 });
@@ -608,24 +774,31 @@ const lagan: Room = {
   mood: ev("lagan").tagline,
   left(s) {
     wash(s, REC.wall);
+    toran(s, 0.0, 1.0, 0.04);
+    laris(s, [0.12, 0.2, 0.8, 0.88], 0.06, 0.24);
     for (const x of [0.06, 0.78]) {
       const win: Pt[] = [[x, 0.86], [x, 0.44], ...s.ellipsePts(x + 0.08, 0.44, 0.08, 0.1, Math.PI, Math.PI * 2, 10), [x + 0.16, 0.86]];
       s.sticker(win, 5, 0.18, tint(REC.glass));
       s.stroke(win, { closed: true, w: 2.4 });
+      jaaliPanel(s, x + 0.02, 0.53, 0.12, 0.29, 3, 5, 0.16);
       s.line(x + 0.08, 0.36, x + 0.08, 0.86, { w: 1.6 });
       s.line(x, 0.62, x + 0.16, 0.62, { w: 1.6 });
     }
     floralArch(s, 0.33, 0.67, 0.34);
     chandelier(s, 0.5, 0.12, 0.12);
-    balloons(s, 0.94, 0.32);
+    diya(s, 0.43, 0.81, 0.045);
+    diya(s, 0.57, 0.81, 0.045);
   },
   right(s) {
     wash(s, REC.wall);
-    fairyLights(s, 0.02, 0.98, 0.06, 0.05);
+    jaaliPanel(s, 0.1, 0.73, 0.8, 0.19, 11, 3, 0.1);
+    toran(s, 0.0, 1.0, 0.04);
+    laris(s, [0.08, 0.16, 0.84, 0.92], 0.06, 0.25);
+    floralArch(s, 0.2, 0.8, 0.08);
     inviteCard(s, ev("lagan"), 0.28, 0.14, 0.44, 0.42, REC.accent);
     couplePhoto(s, 0.06, 0.26, 0.13, 0.16, -0.03);
     couplePhoto(s, 0.8, 0.2, 0.12, 0.14, 0.05);
-    balloons(s, 0.12, 0.62);
+    garland(s, 0.27, 0.73, 0.66, 0.025, 0.01);
   },
   floor(s) {
     if (look.color) s.washAll(tint(REC.floor), 1);
@@ -644,118 +817,52 @@ const lagan: Room = {
         const [px, py] = F(a, b);
         s.blob(px, py, 0.008, 0.006, tint(REC.blush), { w: 1 });
       }
+    const [cx, cy] = F(0.72, 0.72);
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const petal = s.ellipsePts(cx + Math.cos(a) * 0.075, cy + Math.sin(a) * 0.04, 0.012, 0.022);
+      s.sticker(petal, 0.5, 0, tint(MARIGOLD[i % MARIGOLD.length]));
+      s.stroke(petal, { closed: true, w: 1 });
+    }
+    s.circle(cx, cy, 0.025, { w: 1.5 });
     s.shadow(s.ellipsePts(...F(0.14, 0.14), 0.1, 0.1), 0.22, 14);
     s.shadow([F(0.04, 0.34), F(0.2, 0.34), F(0.2, 0.66), F(0.04, 0.66)], 0.22, 14);
     s.shadow(s.ellipsePts(...F(0.62, 0.74), 0.17, 0.14), 0.22, 16);
   },
   popups: isoLayers([
     (iso) => {
-      // cake table in the corner with a three-tier cake and a cake topper
-      iso.cyl(0.14, 0.14, 0, 0.1, 0.22, WHITE, { color: REC.cloth });
-      iso.cyl(0.14, 0.14, 0.22, 0.07, 0.07, WHITE, { color: REC.cake });
-      iso.cyl(0.14, 0.14, 0.29, 0.052, 0.06, WHITE, { color: REC.cake });
-      iso.cyl(0.14, 0.14, 0.35, 0.036, 0.05, WHITE, { color: REC.cake });
-      iso.at([0.14, 0.14, 0.4], (s, [x, y], u) => {
-        s.blob(x - 0.01 * u, y - 0.012 * u, 0.012 * u, 0.012 * u, tint("#f6b7aa"), { w: 1.3, mask: true });
-        s.blob(x + 0.012 * u, y - 0.008 * u, 0.01 * u, 0.01 * u, tint(REC.blush), { w: 1.3, mask: true });
-        s.line(x - 0.008 * u, y - 0.02 * u, x - 0.008 * u, y - 0.06 * u, { w: 1.2, mask: true });
-        s.line(x + 0.008 * u, y - 0.02 * u, x + 0.008 * u, y - 0.06 * u, { w: 1.2, mask: true });
-        s.text("t&z", x, y - 0.07 * u, 0.026 * u);
-        s.maskFill(s.rectPts(x - 0.022 * u, y - 0.085 * u, 0.044 * u, 0.03 * u));
+      // a ceremonial bajot with a brass thali and offerings
+      iso.box(0.12, 0.2, 0, 0.25, 0.23, 0.08, WHITE, { color: REC.runner });
+      iso.box(0.135, 0.215, 0.08, 0.22, 0.2, 0.025, WHITE, { color: REC.cloth });
+      iso.cyl(0.23, 0.31, 0.105, 0.075, 0.012, WHITE, { color: GOLD });
+      iso.disc(0.23, 0.31, 0.117, 0.06, tint("#f7d77a"), { w: 1.3 });
+      iso.at([0.23, 0.31, 0.117], (s, [x, y], u) => {
+        flower(s, x - 0.025 * u, y, 0.012 * u, MARIGOLD[0], true);
+        flower(s, x + 0.025 * u, y, 0.012 * u, "#f7a8a0", true);
+        s.circle(x, y, 0.008 * u, { w: 1.2, mask: true });
       });
-      // the couple's loveseat under the floral arch
-      iso.box(0.04, 0.36, 0, 0.16, 0.3, 0.12, WHITE, { color: REC.sofa });
-      iso.box(0.03, 0.34, 0.12, 0.05, 0.34, 0.2, WHITE, { color: REC.sofa });
-      iso.box(0.04, 0.33, 0, 0.16, 0.04, 0.19, WHITE, { color: REC.sofa });
-      iso.box(0.04, 0.65, 0, 0.16, 0.04, 0.19, WHITE, { color: REC.sofa });
-      iso.box(0.08, 0.4, 0.12, 0.05, 0.1, 0.08, WHITE, { color: REC.blush });
-      iso.box(0.08, 0.53, 0.12, 0.05, 0.1, 0.08, WHITE, { color: REC.champagne });
-      // a champagne tower on a little round table by the right wall
-      iso.cyl(0.42, 0.12, 0, 0.07, 0.2, WHITE, { r2: 0.07, color: REC.cloth });
-      iso.at([0.42, 0.12, 0.2], (s, [x, y], u) => {
-        const coupe = (cx: number, cy: number) => {
-          const bowl: Pt[] = [[cx - 0.016 * u, cy - 0.022 * u], [cx + 0.016 * u, cy - 0.022 * u], [cx + 0.004 * u, cy - 0.008 * u], [cx - 0.004 * u, cy - 0.008 * u]];
-          s.shape(bowl, tint(REC.champagne), { mask: true, w: 1.2 });
-          s.line(cx, cy - 0.008 * u, cx, cy, { w: 1.1, mask: true });
-          s.line(cx - 0.008 * u, cy, cx + 0.008 * u, cy, { w: 1.1, mask: true });
-        };
-        for (const [n, row] of [
-          [4, 0],
-          [3, 1],
-          [2, 2],
-          [1, 3],
-        ])
-          for (let i = 0; i < n; i++) coupe(x + (i - (n - 1) / 2) * 0.034 * u, y - row * 0.026 * u);
-        for (let k = 0; k < 4; k++) s.circle(x + (k - 1.5) * 0.02 * u, y - 0.12 * u - (k % 2) * 0.01 * u, 0.003 * u, { w: 1, mask: true });
-      });
-      // gift table with wrapped presents
-      iso.box(0.62, 0.04, 0, 0.3, 0.14, 0.2, WHITE, { color: REC.cloth });
-      const gifts: [number, number, number, number, number][] = [
-        [0.64, 0.06, 0.08, 0.08, 0.08],
-        [0.74, 0.07, 0.07, 0.07, 0.11],
-        [0.83, 0.06, 0.07, 0.08, 0.06],
-      ];
-      gifts.forEach(([a, b, da, db, h], i) => {
-        iso.box(a, b, 0.2, da, db, h, WHITE, { color: REC.gift[i] });
-        iso.line([a + da / 2, b, 0.2 + h], [a + da / 2, b + db, 0.2 + h], { w: 1.6 });
-        iso.line([a, b + db / 2, 0.2 + h], [a + da, b + db / 2, 0.2 + h], { w: 1.6 });
-        iso.line([a + da / 2, b + db, 0.2], [a + da / 2, b + db, 0.2 + h], { w: 1.6 });
-        iso.at([a + da / 2, b + db / 2, 0.2 + h], (s, [x, y], u) => {
-          s.stroke(s.ellipsePts(x - 0.012 * u, y - 0.008 * u, 0.012 * u, 0.008 * u), { closed: true, w: 1.3, mask: true });
-          s.stroke(s.ellipsePts(x + 0.012 * u, y - 0.008 * u, 0.012 * u, 0.008 * u), { closed: true, w: 1.3, mask: true });
-        });
+      // a kalash with mango leaves and a coconut
+      iso.cyl(0.5, 0.3, 0, 0.035, 0.075, WHITE, { r2: 0.045, color: GOLD });
+      iso.at([0.5, 0.3, 0.075], (s, [x, y], u) => {
+        almondLeaf(s, x - 0.018 * u, y - 0.01 * u, 0.022 * u, -0.8, LEAF, true);
+        almondLeaf(s, x, y - 0.015 * u, 0.024 * u, 0, LEAF, true);
+        almondLeaf(s, x + 0.018 * u, y - 0.01 * u, 0.022 * u, 0.8, LEAF, true);
+        s.blob(x, y - 0.035 * u, 0.018 * u, 0.02 * u, tint("#c9a27a"), { w: 1.3, mask: true });
       });
     },
     (iso) => {
-      // round dinner table with gold chairs, plates, glasses and a tall centrepiece
-      const TX = 0.62;
-      const TY = 0.74;
-      const chair = (a: number, b: number, ang: number) => {
-        const ca = TX + Math.cos(ang) * 0.21;
-        const cb = TY + Math.sin(ang) * 0.21;
-        for (const [da, db] of [
-          [-0.025, -0.025],
-          [0.025, -0.025],
-          [-0.025, 0.025],
-          [0.025, 0.025],
-        ])
-          iso.line([ca + da, cb + db, 0], [ca + da, cb + db, 0.13], { w: 1.8 });
-        iso.box(ca - 0.032, cb - 0.032, 0.13, 0.064, 0.064, 0.018, WHITE, { color: GOLD });
-        // back on the side away from the table
-        const ba = ca + Math.cos(ang) * 0.03;
-        const bb = cb + Math.sin(ang) * 0.03;
-        const pa = -Math.sin(ang) * 0.028;
-        const pb = Math.cos(ang) * 0.028;
-        iso.box(Math.min(ba - pa, ba + pa) - 0.006, Math.min(bb - pb, bb + pb) - 0.006, 0.148, Math.abs(2 * pa) + 0.012, Math.abs(2 * pb) + 0.012, 0.15, WHITE, { color: GOLD });
-        return [a, b];
-      };
-      // chairs behind the table first
-      chair(0, 0, Math.PI * 1.25);
-      chair(0, 0, Math.PI * 0.75);
-      chair(0, 0, Math.PI * 1.75);
-      // the table
-      iso.cyl(TX, TY, 0, 0.15, 0.25, WHITE, { r2: 0.14, color: REC.cloth });
-      for (const a of [0.2, 1.8, 3.4, 5.0]) {
-        const px = TX + Math.cos(a) * 0.095;
-        const py = TY + Math.sin(a) * 0.095;
-        iso.disc(px, py, 0.252, 0.028, WHITE, { w: 1.3 });
-        iso.cyl(px + Math.cos(a + 0.6) * 0.04, py + Math.sin(a + 0.6) * 0.04, 0.25, 0.008, 0.035, WHITE, { r2: 0.012, color: REC.glass });
-      }
-      iso.cyl(TX, TY, 0.25, 0.014, 0.1, WHITE, { r2: 0.02, color: REC.glass });
-      iso.at([TX, TY, 0.35], (s, [x, y], u) => {
-        for (const [dx, dy] of [
-          [-0.03, 0],
-          [0.03, -0.005],
-          [0, -0.03],
-          [-0.015, -0.018],
-          [0.018, -0.022],
-        ])
-          flower(s, x + dx * u, y + dy * u, 0.011 * u, REC.blush, true);
-        almondLeaf(s, x - 0.05 * u, y + 0.01 * u, 0.018 * u, -1.2, LEAF, true);
-        almondLeaf(s, x + 0.05 * u, y + 0.01 * u, 0.018 * u, 1.2, LEAF, true);
+      // floor cushions and a tray of marigolds
+      cushion(iso, 0.23, 0.58, 0.14, REC.accent);
+      cushion(iso, 0.43, 0.58, 0.14, REC.blush);
+      iso.cyl(0.72, 0.43, 0, 0.085, 0.05, WHITE, { r2: 0.1, color: REC.cloth });
+      iso.disc(0.72, 0.43, 0.05, 0.08, tint("#f7d77a"), { w: 1.3 });
+      iso.at([0.72, 0.43, 0.05], (s, [x, y], u) => {
+        for (let i = 0; i < 9; i++) {
+          const a = (i / 9) * Math.PI * 2;
+          flower(s, x + Math.cos(a) * 0.045 * u, y + Math.sin(a) * 0.025 * u, 0.012 * u, MARIGOLD[i % MARIGOLD.length], true);
+        }
+        flower(s, x, y, 0.014 * u, REC.blush, true);
       });
-      // the chair in front
-      chair(0, 0, Math.PI * 0.25);
     },
   ]),
 };
@@ -772,7 +879,6 @@ const SAN = {
   lime: "#dcf59a",
   sun: "#ffe08a",
   booth: "#5a5f9e",
-  bar: "#f3c5cf",
 };
 const CONFETTI = [SAN.pink, SAN.cyan, SAN.lime, SAN.sun, "#ffffff"];
 
@@ -855,6 +961,9 @@ const ringSangeet: Room = {
   mood: ev("ring-sangeet").tagline,
   left(s) {
     if (look.color) s.washAll(tint(SAN.wall, "#ffffff"), 1);
+    jaaliPanel(s, 0.08, 0.78, 0.84, 0.16, 12, 2, 0.07);
+    toran(s, 0.0, 1.0, 0.04);
+    garland(s, 0.08, 0.92, 0.14, 0.035, 0.01);
     // spotlight beams from the top corners
     if (look.color)
       for (const [x0, x1, c] of [
@@ -866,17 +975,9 @@ const ringSangeet: Room = {
     bunting(s, 0.48, 1.0, 0.04, 0.06, 6);
     discoBall(s, 0.64, 0.26, 0.07);
     neon(s, "let's dance!", 0.66, 0.54, 0.075, SAN.pink, -0.06);
-    // a neon "cheers" over the bar
-    neon(s, "cheers", 0.25, 0.44, 0.06, SAN.cyan, 0.04);
-    for (const [x, y] of [
-      [0.14, 0.38],
-      [0.36, 0.39],
-    ]) {
-      const glass: Pt[] = [[x - 0.018, y - 0.03], [x + 0.018, y - 0.03], [x, y]];
-      s.stroke(glass, { closed: true, w: 1.5 });
-      s.line(x, y, x, y + 0.03, { w: 1.5 });
-      s.line(x - 0.012, y + 0.03, x + 0.012, y + 0.03, { w: 1.5 });
-    }
+    neon(s, "sangeet!", 0.25, 0.44, 0.06, SAN.cyan, 0.04);
+    s.stroke(s.ellipsePts(0.25, 0.34, 0.028, 0.028), { w: 2.4 });
+    s.stroke(s.ellipsePts(0.29, 0.34, 0.028, 0.028), { w: 2.4 });
     // music notes floating up
     for (const [x, y] of [
       [0.9, 0.74],
@@ -891,7 +992,10 @@ const ringSangeet: Room = {
   },
   right(s) {
     if (look.color) s.washAll(tint(SAN.wall, "#ffffff"), 1);
+    jaaliPanel(s, 0.08, 0.72, 0.84, 0.2, 12, 3, 0.09);
+    toran(s, 0.0, 1.0, 0.04);
     fairyLights(s, 0.02, 0.98, 0.06, 0.06);
+    floralArch(s, 0.2, 0.8, 0.08);
     inviteCard(s, ev("ring-sangeet"), 0.3, 0.16, 0.4, 0.44, SAN.accent);
     // a photo-booth strip taped up next to the card
     const strip = s.rectPts(0.08, 0.2, 0.11, 0.42);
@@ -930,6 +1034,7 @@ const ringSangeet: Room = {
         }
       }
     tiles(s, n, 0.5);
+    petals(s, 28, [SAN.pink, SAN.sun, MARIGOLD[0]]);
     if (look.color) {
       s.glow(...F(0.6, 0.6), 0.35, "#ffd56b", 0.25);
       s.glow(...F(0.45, 0.75), 0.2, SAN.pink, 0.35);
@@ -957,7 +1062,7 @@ const ringSangeet: Room = {
       iso.box(0.2, 0.05, 0, 0.38, 0.13, 0.26, WHITE, { color: SAN.booth });
       iso.at([0.39, 0.18, 0.13], (s, [x, y], u) => {
         if (look.color) s.glow(x, y, 0.07 * u, SAN.pink, 0.6);
-        s.text("t&z", x, y, 0.045 * u, { rotate: -0.45 });
+        s.text(WEDDING.initials, x, y, 0.045 * u, { rotate: -0.45 });
       });
       for (const a of [0.27, 0.5]) {
         iso.disc(a, 0.115, 0.26, 0.045, tint("#2f3146"), { w: 1.4 });
@@ -978,24 +1083,19 @@ const ringSangeet: Room = {
         s.blob(x - 0.02 * u, y, 0.007 * u, 0.01 * u, tint(SAN.cyan), { w: 1.2, mask: true });
         s.blob(x + 0.02 * u, y, 0.007 * u, 0.01 * u, tint(SAN.cyan), { w: 1.2, mask: true });
       });
-      // the bar along the left wall, with bottles and glasses
-      iso.box(0.04, 0.6, 0, 0.15, 0.32, 0.27, WHITE, { color: SAN.bar });
-      iso.box(0.03, 0.59, 0.27, 0.17, 0.34, 0.02, WHITE, { color: "#fffaf0" });
-      for (const [b, c, h] of [
-        [0.64, SAN.lime, 0.09],
-        [0.69, SAN.pink, 0.11],
-        [0.74, SAN.cyan, 0.08],
-      ] as const) {
-        iso.cyl(0.09, b, 0.29, 0.014, h, WHITE, { r2: 0.014, color: c });
-        iso.cyl(0.09, b, 0.29 + h, 0.006, 0.03, WHITE, { r2: 0.005, color: c });
-      }
-      for (const b of [0.8, 0.86])
-        iso.at([0.12, b, 0.29], (s, [x, y], u) => {
-          const g: Pt[] = [[x - 0.014 * u, y - 0.04 * u], [x + 0.014 * u, y - 0.04 * u], [x, y - 0.018 * u]];
-          s.shape(g, tint(SAN.sun), { mask: true, w: 1.2 });
-          s.line(x, y - 0.018 * u, x, y, { w: 1.1, mask: true });
-          s.line(x - 0.008 * u, y, x + 0.008 * u, y, { w: 1.1, mask: true });
+      // tabla pair on a low marigold-draped stand
+      iso.box(0.04, 0.6, 0, 0.22, 0.24, 0.08, WHITE, { color: SAN.booth });
+      iso.box(0.055, 0.615, 0.08, 0.19, 0.21, 0.018, WHITE, { color: SAN.sun });
+      const tabla = (a: number, b: number, r: number, h: number) => {
+        iso.cyl(a, b, 0.098, r, h, WHITE, { r2: r * 0.8, color: SAN.drum });
+        iso.disc(a, b, 0.098 + h, r * 0.82, tint("#f5e3b0"), { w: 1.2 });
+        iso.at([a, b, 0.098 + h], (s, [x, y], u) => {
+          s.circle(x, y, r * 0.4 * u, { w: 1.2, mask: true });
+          s.blob(x, y, r * 0.15 * u, r * 0.15 * u, tint(SAN.speaker), { w: 1, mask: true });
         });
+      };
+      tabla(0.11, 0.7, 0.045, 0.12);
+      tabla(0.2, 0.72, 0.035, 0.1);
     },
     (iso) => {
       // a bunch of balloons tied to a weight, and a mic stand on the floor

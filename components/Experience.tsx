@@ -15,6 +15,36 @@ import { buildTextures, type BookTextures } from "@/lib/textures";
 import { look } from "@/lib/style";
 
 const FONT = "Caveat";
+const PAGE_THEMES: Record<string, { paper: string; glow: string; edge: string; accent: string; ornamentFilter: string }> = {
+  haldi: {
+    paper: "#f6edda",
+    glow: "rgba(238, 193, 80, 0.15)",
+    edge: "rgba(122, 83, 42, 0.11)",
+    accent: "#bd801e",
+    ornamentFilter: "sepia(0.55) saturate(1.5) hue-rotate(-8deg)",
+  },
+  "ring-sangeet": {
+    paper: "#eeedf5",
+    glow: "rgba(161, 151, 216, 0.15)",
+    edge: "rgba(69, 64, 109, 0.11)",
+    accent: "#7770ae",
+    ornamentFilter: "sepia(0.15) saturate(1.15) hue-rotate(210deg)",
+  },
+  lagan: {
+    paper: "#f3e5ce",
+    glow: "rgba(222, 174, 98, 0.13)",
+    edge: "rgba(112, 70, 43, 0.12)",
+    accent: "#a85b3c",
+    ornamentFilter: "sepia(0.25) saturate(1.3) hue-rotate(5deg)",
+  },
+  wedding: {
+    paper: "#f6e8df",
+    glow: "rgba(218, 139, 145, 0.13)",
+    edge: "rgba(112, 70, 43, 0.11)",
+    accent: "#b04b58",
+    ornamentFilter: "sepia(0.25) saturate(1.4) hue-rotate(-8deg)",
+  },
+};
 
 export default function Experience() {
   const [tex, setTex] = useState<BookTextures | null>(null);
@@ -99,6 +129,23 @@ export default function Experience() {
   };
 
   const current = ROOMS[room];
+  const pageTheme = PAGE_THEMES[open ? current.name : "wedding"] ?? PAGE_THEMES.wedding;
+
+  useEffect(() => {
+    const root = document.documentElement.style;
+    root.setProperty("--paper", pageTheme.paper);
+    root.setProperty("--paper-glow", pageTheme.glow);
+    root.setProperty("--paper-edge", pageTheme.edge);
+    root.setProperty("--event-accent", pageTheme.accent);
+    root.setProperty("--ornament-filter", pageTheme.ornamentFilter);
+    return () => {
+      root.removeProperty("--paper");
+      root.removeProperty("--paper-glow");
+      root.removeProperty("--paper-edge");
+      root.removeProperty("--event-accent");
+      root.removeProperty("--ornament-filter");
+    };
+  }, [pageTheme]);
 
   return (
     <main className="stage">
